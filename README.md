@@ -102,3 +102,6 @@ terraform {
     - mainブランチにマージされるとterraform applyが実行され環境に適用されます。
 
 # Actions説明
+aaa
+aaa
+aaa
