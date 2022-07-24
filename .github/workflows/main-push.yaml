@@ -1,6 +1,8 @@
 name: "Main push Actions(only merge by pullrequest)"
 on:
-  pull_request:
+  push:
+    branches:
+      - main
 env:
   TERRAFORM_TARGET_DIR: "terraform/accounts"
   TERRAFORM_MODULES_DIR: "terraform/modules"
