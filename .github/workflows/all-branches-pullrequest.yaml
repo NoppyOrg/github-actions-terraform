@@ -76,8 +76,6 @@ jobs:
         shell: bash
         working-directory: ${{ matrix.target }}
     steps:
-      - name: Sleep
-        run: sleep 5
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
@@ -85,7 +83,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          role-to-assume: ${{ secrets.ASSUME_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::627477542848:role/GitHubActions-ExecutingTerraform-Role
+          role-session-name: pullrequest
           aws-region: ap-northeast-1
       - name: AWS Sts Get Caller Identity
         run: aws sts get-caller-identity
