@@ -7,6 +7,7 @@ env:
   TERRAFORM_MODULES_DIR: "terraform/modules"
   TERRAFORM_ENVS_EXCLUDED_DIR: "_template"
   TERRAFORM_VERSION: 1.2.5
+  CHECKOV_SKIP_CHECK: "LOW"
 jobs:
   detect_dirs:
     name: "Detect modified directories"
@@ -109,7 +110,7 @@ jobs:
           directory: ${{env.TERRAFORM_ROOT_DIR}}
           framework: terraform
           quiet: true
-          skip_check: LOW
+          skip_check: ${{env.CHECKOV_SKIP_CHECK}}
       - name: Terraform Format
         run: terraform fmt -recursive -check=true
       - name: Terraform Init

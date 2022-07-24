@@ -4,7 +4,6 @@ on:
     branches:
       - main
 env:
-  TERRAFORM_ROOT_DIR: "terraform"
   TERRAFORM_TARGET_DIR: "terraform/accounts"
   TERRAFORM_MODULES_DIR: "terraform/modules"
   TERRAFORM_ENVS_EXCLUDED_DIR: "_template"
@@ -104,18 +103,6 @@ jobs:
         uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: ${{env.TERRAFORM_VERSION}}
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
-      - name: Test with Checkov
-        id: checkov
-        uses: bridgecrewio/checkov-action@master
-        with:
-          directory: ${{env.TERRAFORM_ROOT_DIR}}
-          framework: terraform
-          quiet: true
-          skip_check: LOW
       - name: Terraform Format
         run: terraform fmt -recursive -check=true
       - name: Terraform Init
