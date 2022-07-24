@@ -60,7 +60,8 @@ jobs:
               sed -E 's:(^${{ env.TERRAFORM_TARGET_DIR }}/[^/]*/)(.*$):\1:' | \
               sort | uniq | \
               awk '{ if( system("[ -d "$1" ]") == 0 ){print $1} }' | \
-              grep -v '${{env.TERRAFORM_ENVS_EXCLUDED_DIR}}'
+              awk '?/${{env.TERRAFORM_ENVS_EXCLUDED_DIR}}/{print $1}' | \
+              jq -scR 'split("\n") | .[:-1]'
             );
 
 
