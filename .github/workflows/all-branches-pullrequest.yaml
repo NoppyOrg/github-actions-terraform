@@ -78,7 +78,8 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ${{ matrix.target }}
+    env:
+      TERRAFORM_WORK_DIR: ${{ matrix.target }}
     permissions:
       id-token: write
       contents: read
@@ -114,8 +115,8 @@ jobs:
       - name: Terraform Format
         run: terraform fmt -recursive -check=true
       - name: Terraform Init
-        run: terraform init
+        run: terraform -chdir=${TERRAFORM_WORK_DIR} init
       - name: Terraform Validate
-        run: terraform validate -no-color
+        run: terraform -chdir=${TERRAFORM_WORK_DIR} validate -no-color
       - name: Terraform Plan
-        run: terraform plan
+        run: terraform -chdir=${TERRAFORM_WORK_DIR} plan
