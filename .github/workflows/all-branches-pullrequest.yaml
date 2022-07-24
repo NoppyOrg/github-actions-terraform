@@ -1,0 +1,100 @@
+name: "PullRequest Actions"
+on:
+  pull_request:
+env:
+  TERRAFORM_ENVS_DIR: "./terraform/envs"
+  TERRAFORM_MODULES_DIR: "./terraform/modules"
+
+jobs:
+  detect_dirs:
+    name: "Detect modified enviroment directories"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      TARGET_DIR: ${{ steps.detectddir.outputs.TARGET_DIR }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Detect modified project directories
+        id: detectddir
+        run: |
+          echo "::group::Detect directories process"
+
+          # git fetch
+          TARGET_BRANCH="${{ github.base_ref }}"  
+          echo "TAGET_BRANCE = ${TARGET_BRANCH}"
+          git fetch --depth 1 origin ${TARGET_BRANCH}
+
+          # If modules is changed, execute terraform to all environments.
+          MODULES_DIR=$( \
+            git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{ env.TERRAFORM_MODULES_DIR }} | \
+            sed 's:\(^${{ env.TERRAFORM_MODULES_DIR }}/[^/]*\)*.*$:\1:'| \
+            sort | uniq | \
+            awk '{ if( system("[ -d "$1" ]") == 0 ){print $1} }' | \
+            jq -scR 'split("\n") | .[:-1]');
+
+
+
+
+          TARGET_ENVSDIR=$(git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{ env.BASE_DIR }} | \
+            sed 's:\(^${{ env.BASE_DIR }}/[^/]*\)*.*$:\1:'| \
+            sort | uniq | \
+            awk '{ if( system("[ -d "$1" ]") == 0 ){print $1} }' | \
+            jq -scR 'split("\n") | .[:-1]');
+
+          echo "::endgroup::"
+          # Output results
+          echo "::group::Detect directories results"
+          echo "TARGET_DIR = ${TARGET_DIR}"
+          echo "::endgroup::"
+          # End processing
+          echo "::set-output name=TARGET_DIR::${TARGET_DIR}"
+          exit 0
+
+  run_terraform:
+    name: "Run terraform"
+    needs: detect_dirs
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        target: ${{fromJson(needs.detect_dirs.outputs.TARGET_DIR)}}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ matrix.target }}
+    env:
+      GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Setup AWS credentals
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate -no-color
+
+      - name: Terraform Plan
+        run: terraform plan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && ( github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.Apply == 'true') )
+        run: terraform apply -auto-approve
