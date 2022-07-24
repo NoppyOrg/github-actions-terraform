@@ -5,6 +5,7 @@ env:
   TERRAFORM_TARGET_DIR: "terraform/accounts"
   TERRAFORM_MODULES_DIR: "terraform/modules"
   TERRAFORM_ENVS_EXCLUDED_DIR: "_template"
+  TERRAFORM_VERSION: 1.2.5
 jobs:
   detect_dirs:
     name: "Detect modified directories"
@@ -93,6 +94,8 @@ jobs:
         run: aws sts get-caller-identity
       - name: Setup terraform
         uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: ${{env.TERRAFORM_VERSION}}
       - name: Terraform Format
         run: terraform fmt -recursive -check=true
       - name: Terraform Init
