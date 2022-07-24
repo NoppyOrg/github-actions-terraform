@@ -102,4 +102,79 @@ terraform {
     - mainブランチにマージされるとterraform applyが実行され環境に適用されます。
 
 # Actions説明
-aaa
+## ジョブ構成
+ワークフローは、以下の２つのジョブで構成しています。
+1. 更新されたterraformディレクトリ特定JOB
+1. 特定したterraformディレクトリに対してのterraform実行(matrixによる並列実行)
+
+## 更新ディレクトリの特定方法
+更新ディレクトリは、`git diff`で`origin/main`ブランチからの更新リストを取得し、シェルで更新があったディレクトリを特定しています。
+具体的には以下の処理をしています。
+1. ターゲットブランチ(`origin/main`)特定 : pull requestとmainブランチへのプッシュでターゲットブランチの特定方法がことなります。
+    1. Pull Request: `${{ github.base_ref }}`
+    1. MainブランチへのPush: `${GITHUB_REF#refs/heads/}`
+1. 差分取得 : `git diff`コマンドで`/terraform/accounts`配下の差分を特定します。
+    1. Pull Request: `git diff origin/${TARGET_BRANCH} HEAD --name-only -- /terraform/accounts`
+    1. MainブランチへのPush: `git diff HEAD^ HEAD --name-only -- /terraform/accounts`
+1. 差分からsedコマンドから`/terraform/accounts`直下のファイル/ディレクトリを抽出します。
+    1. コマンド : `sed -E 's:(^${{ env.TERRAFORM_TARGET_DIR }}/[^/]*/)(.*$):\1:'`
+    1. 処理イメージ
+        1. 処理前
+            ```
+            terraform/accounts/_template/terraform.tf
+            terraform/accounts/user-b/terraform.tf
+            terraform/accounts/user-b/backend.tf
+            terraform/accounts/user-a/main.tf
+            terraform/accounts/user-a/provider.tf
+            ```
+        1. 処理後
+            ```
+            terraform/accounts/_template/
+            terraform/accounts/user-b/
+            terraform/accounts/user-b/
+            terraform/accounts/user-a/
+            terraform/accounts/user-a/
+            ```
+1. 重複データを排除します
+    1. コマンド : `sort | uniq`
+    1. 処理イメージ
+        1. 処理前
+            ```
+            terraform/accounts/_template/
+            terraform/accounts/user-b/
+            terraform/accounts/user-b/
+            terraform/accounts/user-a/
+            terraform/accounts/user-a/
+            ```
+        1. 処理後
+            ```
+            terraform/accounts/_template/
+            terraform/accounts/user-b/
+            terraform/accounts/user-a/
+            ```
+1. 存在するディレクトリのみ残します(ディレクトリ削除更新対策)。また`_template`ディレクトリを除外します。
+    1. コマンド : `awk '{ if( system("[ -d "$1" ]") == 0 && $1 !~ /${{env.TERRAFORM_ENVS_EXCLUDED_DIR}}/ ){print $1} }'`
+    1. 処理イメージ
+        1. 処理前
+            ```
+            terraform/accounts/_template/
+            terraform/accounts/user-b/
+            terraform/accounts/user-a/
+            ```
+        1. 処理後
+            ```
+            terraform/accounts/user-b/
+            terraform/accounts/user-a/
+            ```
+1. JSONのLIST形式に変換します。
+    1. コマンド : `jq -scR 'split("\n") | .[:-1]'`
+    1. 処理イメージ
+        1. 処理前
+            ```
+            terraform/accounts/user-b/
+            terraform/accounts/user-a/
+            ```
+        1. 処理後
+            ```
+            [ "terraform/accounts/user-b/", "terraform/accounts/user-a/" ]
+            ```
