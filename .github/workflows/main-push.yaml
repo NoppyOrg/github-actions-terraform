@@ -1,6 +1,8 @@
-name: "PullRequest Actions"
+name: "Main push Actions(only merge by pullrequest)"
 on:
-  pull_request:
+  push:
+    branches:
+      - main
 env:
   TERRAFORM_TARGET_DIR: "terraform/accounts"
   TERRAFORM_MODULES_DIR: "terraform/modules"
@@ -23,13 +25,19 @@ jobs:
         run: |
           echo "::group::Detect directories process"
 
+          # Atteintion:
+          # - This logic only detects updates to the envs folder.
+          # - Note that execution will be omitted in the case of pushing multiple commits directly.
+          #   However, in the case of pull req merge, it is not necessary to consider it because it is 1 commit.
+          #   (because of checking the difference from the previous commit)
+
           # git fetch
-          TARGET_BRANCH="${{ github.base_ref }}"  
+          TARGET_BRANCH="${GITHUB_REF#refs/heads/}"
           echo "TAGET_BRANCE = ${TARGET_BRANCH}"
-          git fetch --depth 1 origin ${TARGET_BRANCH}
+          git fetch --depth 2 origin ${TARGET_BRANCH}
 
           # If modules is changed, execute terraform to all .
-          LINES=$( git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{env.TERRAFORM_MODULES_DIR}} | wc -l )
+          LINES=$( git diff HEAD^ HEAD --name-only -- ${{env.TERRAFORM_MODULES_DIR}} | wc -l )
           if [ ${LINES} -gt 0 ]; then
             flag_all_envs='true'
           else
@@ -44,7 +52,7 @@ jobs:
             );
           else
             TARGET_DIR=$( \
-              git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{ env.TERRAFORM_TARGET_DIR }} | \
+              git diff HEAD^ HEAD --name-only -- ${{ env.TERRAFORM_TARGET_DIR }} | \
               sed -E 's:(^${{ env.TERRAFORM_TARGET_DIR }}/[^/]*/)(.*$):\1:' | \
               sort | uniq | \
               awk '{ if( system("[ -d "$1" ]") == 0 ){print $1} }' | \
@@ -104,3 +112,5 @@ jobs:
         run: terraform validate -no-color
       - name: Terraform Plan
         run: terraform plan
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
