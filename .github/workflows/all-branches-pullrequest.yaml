@@ -21,22 +21,24 @@ jobs:
       - name: Detect modified project directories
         id: detectddir
         run: |
-          echo "::group::Detect directories process"
-
           # git fetch
+          echo "::group::git fetch"
           TARGET_BRANCH="${{ github.base_ref }}"  
           echo "TAGET_BRANCE = ${TARGET_BRANCH}"
           git fetch --depth 1 origin ${TARGET_BRANCH}
 
           # If modules is changed, execute terraform to all .
+          echo "::group::check modules directory"
           LINES=$( git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{env.TERRAFORM_MODULES_DIR}} | wc -l )
           if [ ${LINES} -gt 0 ]; then
             flag_all_envs='true'
           else
             flag_all_envs='false'
           fi
+          echo "::group::flag_all_envs = ${flag_all_envs}"
 
           # Detect target directories
+          echo "::group::detect target directories"
           if [ "${flag_all_envs}" == 'true' ]; then
             TARGET_DIR=$( \
               find ${{env.TERRAFORM_TARGET_DIR}} -type d -not -name ${{env.TERRAFORM_ENVS_EXCLUDED_DIR}} -maxdepth 1 -mindepth 1 | \
@@ -47,9 +49,8 @@ jobs:
               git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{ env.TERRAFORM_TARGET_DIR }} | \
               sed -E 's:(^${{ env.TERRAFORM_TARGET_DIR }}/[^/]*/)(.*$):\1:' | \
               sort | uniq | \
-              awk '{ if( system("[ -d "$1" ]") == 0 ){print $1} }' | \
-              grep -v '${{env.TERRAFORM_ENVS_EXCLUDED_DIR}}' | \
-              jq -scR 'split("\n") | .[:-1]' \
+              awk '{ if( system("[ -d "$1" ]") == 0 && $1 !~ /${{env.TERRAFORM_ENVS_EXCLUDED_DIR}}/ ){print $1} }'  | \
+              jq -scR 'split("\n") | .[:-1]'
             );
           fi
 

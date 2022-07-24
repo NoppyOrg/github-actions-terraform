@@ -103,5 +103,3 @@ terraform {
 
 # Actions説明
 aaa
-aaa
-aaa
