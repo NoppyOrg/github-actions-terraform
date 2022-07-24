@@ -2,8 +2,9 @@ name: "PullRequest Actions"
 on:
   pull_request:
 env:
-  TERRAFORM_ENVS_DIR: "./terraform/envs"
-  TERRAFORM_MODULES_DIR: "./terraform/modules"
+  TERRAFORM_ENVS_DIR: "terraform/envs"
+  TERRAFORM_MODULES_DIR: "terraform/modules"
+  TERRAFORM_ENVS_EXCLUDED_DIR: "_template"
 
 jobs:
   detect_dirs:
@@ -28,22 +29,30 @@ jobs:
           git fetch --depth 1 origin ${TARGET_BRANCH}
 
           # If modules is changed, execute terraform to all environments.
-          MODULES_DIR=$( \
-            git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{ env.TERRAFORM_MODULES_DIR }} | \
-            sed 's:\(^${{ env.TERRAFORM_MODULES_DIR }}/[^/]*\)*.*$:\1:'| \
-            sort | uniq | \
-            awk '{ if( system("[ -d "$1" ]") == 0 ){print $1} }' | \
-            jq -scR 'split("\n") | .[:-1]');
+          LINES=$( git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{env.TERRAFORM_MODULES_DIR}} | wc -l )
+          if [ ${LINES} -gt 0 ]; then
+            flag_all_envs='true'
+          else
+            flag_all_envs='false'
+          fi
 
+          # Detect target directories
+          if [ "${flag_all_envs}" == 'true' ]; then
+            TARGET_DIR=$( \
+              find ${{env.TERRAFORM_ENVS_DIR}} -type d -not -name ${{env.TERRAFORM_ENVS_EXCLUDED_DIR}} -maxdepth 1 -mindepth 1 | \
+              jq -scR 'split("\n") | .[:-1]' \
+            );
+          else
+            TARGET_DIR=$( \
+              git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{ env.TERRAFORM_ENVS_DIR }} | \
+              sed -E 's:(^${{ env.TERRAFORM_ENVS_DIR }}/[^/]*/)(.*$):\1:' | \
+              sort | uniq | \
+              awk '{ if( system("[ -d "$1" ]") == 0 ){print $1} }' | \
+              grep -v '${{env.TERRAFORM_ENVS_EXCLUDED_DIR}}' | \
+              jq -scR 'split("\n") | .[:-1]' \
+            );
 
-
-
-          TARGET_ENVSDIR=$(git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{ env.BASE_DIR }} | \
-            sed 's:\(^${{ env.BASE_DIR }}/[^/]*\)*.*$:\1:'| \
-            sort | uniq | \
-            awk '{ if( system("[ -d "$1" ]") == 0 ){print $1} }' | \
-            jq -scR 'split("\n") | .[:-1]');
-
+          # Output target directories
           echo "::endgroup::"
           # Output results
           echo "::group::Detect directories results"
@@ -66,35 +75,23 @@ jobs:
       run:
         shell: bash
         working-directory: ${{ matrix.target }}
-    env:
-      GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-
-      - name: Setup terraform
-        uses: hashicorp/setup-terraform@v1
-
-      - name: Setup AWS credentals
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.ASSUME_ROLE_ARN }}
           aws-region: ap-northeast-1
-
+      - name: AWS Sts Get Caller Identity
+        run: aws sts get-caller-identity
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v1
       - name: Terraform Format
-        run: terraform fmt -check
-
+        run: terraform fmt -recursive -check=true
       - name: Terraform Init
         run: terraform init
-
       - name: Terraform Validate
         run: terraform validate -no-color
-
       - name: Terraform Plan
         run: terraform plan
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main' && ( github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.Apply == 'true') )
-        run: terraform apply -auto-approve
