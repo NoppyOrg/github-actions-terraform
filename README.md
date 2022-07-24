@@ -74,7 +74,7 @@ GitHubリポジトリの`Actions Secrets`に`ASSUME_ROLE_ARN`というSecrets名
 設定画面
 ![GitHub Secrets設定イメージ](./Documents/github_secrets_setting.png)
 
-##　Terraform変更
+## Terraform変更
 ### 既存の developmentディレクトリの置き換え
 `terraform/accounts/template`フォルダの内容を更新します。
 
