@@ -1,7 +1,14 @@
 # github-actions-terraform
+# 概要
+GitHub ActionsによるTerraformのCIサンプルです。
+特徴は以下の通りです。
+- OpenID Connect(OIDC)でのAWS認証によるActions実行により、アクセスキー&シークレットキー管理が不要
+- Terraformのデファクトとなっているディレクトリ構成で作成
+- その上でActionsでは、更新があったディレクトリを特定し、そのディレクトリのみTerraformを実行。
 
 
-#　　概要
+`terrafrom/envs/xxx`のように環境面など、実行ディレクトリが特定されている場合は、ワークフローを分けてしまった方が簡単ですが、アカウントやプロジェクトなどTerraform実行ディレクトリが単純増加するユースケースで、このサンプルの枠フローが効果を発揮します。
+
 ## 前提とするTerraformのディレクトリ構成
 terraformのモジュールの標準的なディレクトリ構成を前提としています。
 `/terraform/accounts/`配下にそれぞれのアカウント単位でterrafomを管理するイメージです。
