@@ -100,3 +100,5 @@ terraform {
     - GitHubにはフューチャーブランチ(`feature`または`feature-*`の名称)で、Pushします(terraform planが実行されます)
     - フューチャーブランチから、mainブランチへのPull Requestを作成します。(terraform planが実行されます)
     - mainブランチにマージされるとterraform applyが実行され環境に適用されます。
+
+# Actions説明
