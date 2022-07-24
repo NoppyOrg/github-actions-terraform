@@ -50,6 +50,7 @@ jobs:
               grep -v '${{env.TERRAFORM_ENVS_EXCLUDED_DIR}}' | \
               jq -scR 'split("\n") | .[:-1]' \
             );
+          fi
 
           # Output target directories
           echo "::endgroup::"
@@ -61,36 +62,36 @@ jobs:
           echo "::set-output name=TARGET_DIR::${TARGET_DIR}"
           exit 0
 
-  run_terraform:
-    name: "Run terraform"
-    needs: detect_dirs
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        target: ${{fromJson(needs.detect_dirs.outputs.TARGET_DIR)}}
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-        working-directory: ${{ matrix.target }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.ASSUME_ROLE_ARN }}
-          aws-region: ap-northeast-1
-      - name: AWS Sts Get Caller Identity
-        run: aws sts get-caller-identity
-      - name: Setup terraform
-        uses: hashicorp/setup-terraform@v1
-      - name: Terraform Format
-        run: terraform fmt -recursive -check=true
-      - name: Terraform Init
-        run: terraform init
-      - name: Terraform Validate
-        run: terraform validate -no-color
-      - name: Terraform Plan
-        run: terraform plan
+  # run_terraform:
+  #   name: "Run terraform"
+  #   needs: detect_dirs
+  #   strategy:
+  #     fail-fast: false
+  #     max-parallel: 2
+  #     matrix:
+  #       target: ${{fromJson(needs.detect_dirs.outputs.TARGET_DIR)}}
+  #   runs-on: ubuntu-latest
+  #   defaults:
+  #     run:
+  #       shell: bash
+  #       working-directory: ${{ matrix.target }}
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v2
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v1
+  #       with:
+  #         role-to-assume: ${{ secrets.ASSUME_ROLE_ARN }}
+  #         aws-region: ap-northeast-1
+  #     - name: AWS Sts Get Caller Identity
+  #       run: aws sts get-caller-identity
+  #     - name: Setup terraform
+  #       uses: hashicorp/setup-terraform@v1
+  #     - name: Terraform Format
+  #       run: terraform fmt -recursive -check=true
+  #     - name: Terraform Init
+  #       run: terraform init
+  #     - name: Terraform Validate
+  #       run: terraform validate -no-color
+  #     - name: Terraform Plan
+  #       run: terraform plan
