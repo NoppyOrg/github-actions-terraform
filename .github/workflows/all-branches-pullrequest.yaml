@@ -77,8 +77,7 @@ jobs:
         working-directory: ${{ matrix.target }}
     steps:
       - name: Sleep
-        if: steps.aws-auth.outcome != 'success'
-        run: sleep $[ ( $RANDOM % 50 )  + 15 ]s
+        run: sleep 5
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
