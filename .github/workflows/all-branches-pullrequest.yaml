@@ -35,6 +35,7 @@ jobs:
           else
             flag_all_envs='false'
           fi
+          echo "::group::flag_all_envs = ${flag_all_envs}"
 
           # Detect target directories
           echo "::group::detect target directories"
@@ -43,6 +44,7 @@ jobs:
               find ${{env.TERRAFORM_TARGET_DIR}} -type d -not -name ${{env.TERRAFORM_ENVS_EXCLUDED_DIR}} -maxdepth 1 -mindepth 1 | \
               jq -scR 'split("\n") | .[:-1]' \
             );
+            echo "::group::ALL target = ${TARGET_DIR}"
           else
             TARGET_DIR=$( \
               git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{ env.TERRAFORM_TARGET_DIR }} | \
@@ -52,6 +54,7 @@ jobs:
               grep -v '${{env.TERRAFORM_ENVS_EXCLUDED_DIR}}' | \
               jq -scR 'split("\n") | .[:-1]' \
             );
+            echo "::group::target = ${TARGET_DIR}"
           fi
 
           # Output target directories
