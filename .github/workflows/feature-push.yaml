@@ -1,0 +1,120 @@
+name: "Feature push Actions"
+on:
+  push:
+    branches:
+      - feature
+      - feature-*
+env:
+  TERRAFORM_TARGET_DIR: "terraform/accounts"
+  TERRAFORM_MODULES_DIR: "terraform/modules"
+  TERRAFORM_ENVS_EXCLUDED_DIR: "_template"
+  TERRAFORM_VERSION: 1.2.5
+  TARGET_BRANCH: main
+jobs:
+  detect_dirs:
+    name: "Detect modified directories"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      TARGET_DIR: ${{ steps.detectddir.outputs.TARGET_DIR }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Detect modified project directories
+        id: detectddir
+        run: |
+          echo "::group::Detect directories process"
+
+          # Atteintion:
+          # - This logic only detects updates to the envs folder.
+          # - Note that execution will be omitted in the case of pushing multiple commits directly.
+          #   However, in the case of pull req merge, it is not necessary to consider it because it is 1 commit.
+          #   (because of checking the difference from the previous commit)
+
+
+
+          # git fetch
+          TARGET_BRANCH="${{env.TARGET_BRANCH}}"
+          echo "TAGET_BRANCE = ${TARGET_BRANCH}"
+          git fetch origin ${TARGET_BRANCH}
+
+          # If modules is changed, execute terraform to all .
+          LINES=$( git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{env.TERRAFORM_MODULES_DIR}} | wc -l )
+          if [ ${LINES} -gt 0 ]; then
+            flag_all_envs='true'
+          else
+            flag_all_envs='false'
+          fi
+
+          # Detect target directories
+          if [ "${flag_all_envs}" == 'true' ]; then
+            TARGET_DIR=$( \
+              find ${{env.TERRAFORM_TARGET_DIR}} -type d -not -name ${{env.TERRAFORM_ENVS_EXCLUDED_DIR}} -maxdepth 1 -mindepth 1 | \
+              jq -scR 'split("\n") | .[:-1]' \
+            );
+          else
+            TARGET_DIR=$( \
+              git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{ env.TERRAFORM_TARGET_DIR }} | \
+              sed -E 's:(^${{ env.TERRAFORM_TARGET_DIR }}/[^/]*/)(.*$):\1:' | \
+              sort | uniq | \
+              awk '{ if( system("[ -d "$1" ]") == 0 ){print $1} }' | \
+              grep -v '${{env.TERRAFORM_ENVS_EXCLUDED_DIR}}' | \
+              jq -scR 'split("\n") | .[:-1]' \
+            );
+          fi
+
+          # Output target directories
+          echo "::endgroup::"
+          # Output results
+          echo "::group::Detect directories results"
+          echo "TARGET_DIR = ${TARGET_DIR}"
+          echo "::endgroup::"
+          # End processing
+          echo "::set-output name=TARGET_DIR::${TARGET_DIR}"
+          exit 0
+
+  run_terraform:
+    name: "Run terraform"
+    needs: detect_dirs
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        target: ${{fromJson(needs.detect_dirs.outputs.TARGET_DIR)}}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ matrix.target }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{secrets.ASSUME_ROLE_ARN}}
+          role-session-name: pullrequest
+          aws-region: ap-northeast-1
+      - name: AWS Sts Get Caller Identity
+        run: aws sts get-caller-identity
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: ${{env.TERRAFORM_VERSION}}
+      - name: Terraform Format
+        run: terraform fmt -recursive -check=true
+      - name: Terraform Init
+        run: terraform init
+      - name: Terraform Validate
+        run: terraform validate -no-color
+      - name: Terraform Plan
+        run: terraform plan
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
