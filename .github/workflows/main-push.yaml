@@ -62,7 +62,7 @@ jobs:
 
           #Check
           echo "::group::check target directories"
-          if [ "${}" == "[]" ]; then
+          if [ "${TARGET_DIR}" == "[]" ]; then
             RUN_TERRAFORM_JOB="false"
           else
             RUN_TERRAFORM_JOB="true"
