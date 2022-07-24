@@ -2,10 +2,12 @@ name: "PullRequest Actions"
 on:
   pull_request:
 env:
+  TERRAFORM_ROOT_DIR: "terraform"
   TERRAFORM_TARGET_DIR: "terraform/accounts"
   TERRAFORM_MODULES_DIR: "terraform/modules"
   TERRAFORM_ENVS_EXCLUDED_DIR: "_template"
   TERRAFORM_VERSION: 1.2.5
+  CHECKOV_SKIP_CHECK: "LOW"
 jobs:
   detect_dirs:
     name: "Detect modified directories"
@@ -76,7 +78,8 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ${{ matrix.target }}
+    env:
+      TERRAFORM_WORK_DIR: ${{ matrix.target }}
     permissions:
       id-token: write
       contents: read
@@ -97,11 +100,23 @@ jobs:
         uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: ${{env.TERRAFORM_VERSION}}
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+      - name: Test with Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ${{env.TERRAFORM_ROOT_DIR}}
+          framework: terraform
+          quiet: true
+          skip_check: ${{env.CHECKOV_SKIP_CHECK}}
       - name: Terraform Format
         run: terraform fmt -recursive -check=true
       - name: Terraform Init
-        run: terraform init
+        run: terraform -chdir=${TERRAFORM_WORK_DIR} init
       - name: Terraform Validate
-        run: terraform validate -no-color
+        run: terraform -chdir=${TERRAFORM_WORK_DIR} validate -no-color
       - name: Terraform Plan
-        run: terraform plan
+        run: terraform -chdir=${TERRAFORM_WORK_DIR} plan

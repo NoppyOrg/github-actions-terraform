@@ -4,7 +4,8 @@ GitHub ActionsによるTerraformのCIサンプルです。
 特徴は以下の通りです。
 - OpenID Connect(OIDC)でのAWS認証によるActions実行により、アクセスキー&シークレットキー管理が不要
 - Terraformのデファクトとなっているディレクトリ構成で作成
-- その上でActionsでは、更新があったディレクトリを特定し、そのディレクトリのみTerraformを実行。
+- その上でActionsでは、更新があったディレクトリを特定し、そのディレクトリのみTerraformを実行
+- CIに、IaCコードの静的解析を行うcheckovを組み込み、Pull Requestで自動実行(最近流行りの、DevSecOpsぽいものを実現)
 
 
 `terrafrom/envs/xxx`のように環境面など、実行ディレクトリが特定されている場合は、ワークフローを分けてしまった方が簡単ですが、アカウントやプロジェクトなどTerraform実行ディレクトリが単純増加するユースケースで、このサンプルの枠フローが効果を発揮します。
@@ -107,7 +108,12 @@ terraform {
     - GitHubにはフューチャーブランチ(`feature`または`feature-*`の名称)で、Pushします(terraform planが実行されます)
     - フューチャーブランチから、mainブランチへのPull Requestを作成します。(terraform planが実行されます)
     - mainブランチにマージされるとterraform applyが実行され環境に適用されます。
-
+## その他補足
+### Checkovへの除外追加設定
+checkovで除外したいポリシーがある場合、`.github/workflows/all-branches-pullrequest.yaml`の下記部分に、除外したいポリシーをカンマ区切りで追加します。デフォルトでは、`LOW`レベルのチェックを除外しています。
+```yaml
+  CHECKOV_SKIP_CHECK: "LOW"
+```
 # Actions説明
 ## ジョブ構成
 ワークフローは、以下の２つのジョブで構成しています。
