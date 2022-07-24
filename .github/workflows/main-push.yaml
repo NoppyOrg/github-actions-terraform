@@ -69,7 +69,6 @@ jobs:
           # End processing
           echo "::set-output name=TARGET_DIR::${TARGET_DIR}"
           exit 0
-
   run_terraform:
     name: "Run terraform"
     needs: detect_dirs
