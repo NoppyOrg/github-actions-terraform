@@ -73,6 +73,7 @@ jobs:
           # Output results
           echo "::group::results"
           echo "TARGET_DIR = ${TARGET_DIR}"
+          echo "RUN_TERRAFORM_JOB = ${RUN_TERRAFORM_JOB}"
           echo "::endgroup::"
           # End processing
           echo "::set-output name=RUN_TERRAFORM_JOB::${RUN_TERRAFORM_JOB}"
@@ -82,7 +83,7 @@ jobs:
   run_terraform:
     name: "Run terraform"
     needs: detect_dirs
-    if: needs.detect_dirs.outputs.RUN_TERRAFORM_JOB == 'true'
+    if: ${{ needs.detect_dirs.outputs.RUN_TERRAFORM_JOB == 'true' }}
     strategy:
       fail-fast: false
       max-parallel: 2
