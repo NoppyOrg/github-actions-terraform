@@ -55,25 +55,34 @@ jobs:
               git diff HEAD^ HEAD --name-only -- ${{ env.TERRAFORM_TARGET_DIR }} | \
               sed -E 's:(^${{ env.TERRAFORM_TARGET_DIR }}/[^/]*/)(.*$):\1:' | \
               sort | uniq | \
-              awk '{ if( system("[ -d "$1" ]") == 0 ){print $1} }' | \
-              grep -v '${{env.TERRAFORM_ENVS_EXCLUDED_DIR}}' | \
-              jq -scR 'split("\n") | .[:-1]' \
+              awk '{ if( system("[ -d "$1" ]") == 0 && $1 !~ /${{env.TERRAFORM_ENVS_EXCLUDED_DIR}}/ ){print $1} }'  | \
+              jq -scR 'split("\n") | .[:-1]'
             );
+          fi
+
+          #Check
+          echo "::group::check target directories"
+          if [ "${TARGET_DIR}" == "[]" ]; then
+            RUN_TERRAFORM_JOB="false"
+          else
+            RUN_TERRAFORM_JOB="true"
           fi
 
           # Output target directories
           echo "::endgroup::"
           # Output results
-          echo "::group::Detect directories results"
+          echo "::group::results"
           echo "TARGET_DIR = ${TARGET_DIR}"
           echo "::endgroup::"
           # End processing
+          echo "::set-output name=RUN_TERRAFORM_JOB::${RUN_TERRAFORM_JOB}"
           echo "::set-output name=TARGET_DIR::${TARGET_DIR}"
           exit 0
 
   run_terraform:
     name: "Run terraform"
     needs: detect_dirs
+    if: needs.detect_dirs.outputs.RUN_TERRAFORM_JOB == 'true'
     strategy:
       fail-fast: false
       max-parallel: 2
