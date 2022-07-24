@@ -24,7 +24,7 @@ terraformのモジュールの標準的なディレクトリ構成を前提と�
 ## GitHub Actionsの前提
 - mainブランチへのマージで、AWS環境へのデプロイが実行されます
 - mainブランチへはPull Requestでマージする前提です。mainブランチへの直接pushの場合、Actionsが正常に動作しません
-- featureブランチ、またはPull Request作成/更新時には、`terraform plan`を実行します
+- はPull Request作成/更新時に、`terraform plan`を実行します
 - terraform実行アカウントは以下のルールで決定します
     - `terraform/accounts/`配下で更新があったアカウントのディレクトリが対象となります
     - ただし`modules`配下で更新が発生した場合は、`terraform/accounts/`配下のすべてのアカウントのディレクトリが対象となります
