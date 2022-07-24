@@ -57,8 +57,8 @@ jobs:
 
             TARGET_DIR=$( \
               git diff origin/${TARGET_BRANCH} HEAD --name-only -- ${{ env.TERRAFORM_TARGET_DIR }} | \
-              sed -E 's:(^${{ env.TERRAFORM_TARGET_DIR }}/[^/]*/)(.*$):\1:' |
-              sort | uniq '
+              sed -E 's:(^${{ env.TERRAFORM_TARGET_DIR }}/[^/]*/)(.*$):\1:' | \
+              sort | uniq
             );
 
 
